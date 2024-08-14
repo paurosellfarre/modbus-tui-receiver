@@ -27,33 +27,33 @@ impl tokio_modbus::server::Service for ServerService {
     fn call(&self, req: Self::Request) -> Self::Future {
         let res = match req {
             Request::ReadInputRegisters(addr, cnt) => {
-                //Generate random values for the requested registers
-                let mut registers = self.input_registers.lock().unwrap();
+                
+                // Update the values with random data
+                let mut response_values: Vec<u16> = Vec::new();
 
-                let mut prefix = String::new();
-                // Depending on the cnt, we will use a different prefix
+                let value = generate_random_value(addr);
+
                 match cnt {
-                    1 => {
-                        prefix = "AI".to_string(); 
-                    },
+                    // 32 bits registers = 2 16 bits registers
                     2 => {
-                        prefix = "DI".to_string();
+                        // Split the value into two u16 registers
+                        let high = (value >> 16) as u16;
+                        let low = (value & 0xFFFF) as u16;
+                        response_values.push(high);
+                        response_values.push(low);
+                    },
+                    // registers that can be negative
+                    3 => {
+                        let negative_indicator = value < 0;
+                        response_values.push(if negative_indicator { 1 } else { 0 }); // Negative indicator
+                        response_values.push((value as u16) & 0xFFFF); // Value
+                        response_values.push(value as u16);
                     },
                     _ => {
-                        println!("SERVER: Exception::IllegalDataValue - Unimplemented register count in request: {req:?}");
+                        response_values.push(value as u16);
                     }
                 }
                 
-                // Update the values with random data
-                let response_values: Vec<u16> = (0..cnt)
-                    .map(|i| {
-                        let reg_addr = addr + i;
-                        let value = generate_random_value(reg_addr, prefix.clone());
-                        let u16_value = i16_to_u16(value);
-                        registers.insert(reg_addr, u16_value as i16);
-                        u16_value
-                    })
-                    .collect();
                 
                 Ok(Response::ReadInputRegisters(response_values))
                 
@@ -69,9 +69,7 @@ impl tokio_modbus::server::Service for ServerService {
 
 impl ServerService {
     fn new() -> Self {
-        let input_registers: HashMap<u16, i16> = (0..20)
-            .map(|i| (i, generate_random_value(i, "AI".to_string())))
-            .collect();
+        let input_registers: HashMap<u16, i16> = (0..20).map(|i| (i, 0)).collect();
         
         Self {
             input_registers: Arc::new(Mutex::new(input_registers)),
@@ -79,47 +77,28 @@ impl ServerService {
     }
 }
 
-const OFFSET: i32 = 32_768; // Moving the range of i16 to u16
-
-// Convert i16 to u16 (Modbus registers are unsigned)
-fn i16_to_u16(value: i16) -> u16 {
-    (value as i32 + OFFSET) as u16
-}
-
 // Generate random values for the requested registers (FAKE DATA)
-fn generate_random_value(reg_addr: u16, prefix: String) -> i16 {
+fn generate_random_value(reg_addr: u16) -> i32 {
     let mut rng = rand::thread_rng();
-    
-
-    // match prefix + reg_addr
-    match prefix.as_str() {
-        "AI" => {
-            match reg_addr {
-                10 => rng.gen_range(0..=15000), // AI10
-                11 => rng.gen_range(-15000..=0), // AI11
-                12 => rng.gen_range(0..=1_000_000) as i16, // AI12
-                13 => rng.gen_range(0..=1_000_000) as i16, // AI13
-                17 => rng.gen_range(0..=12000) , // AI17
-                18 => rng.gen_range(-15000..=15000), // AI18
-                19 => rng.gen_range(0..=1000), // AI19
-                20 => rng.gen_range(0..=1000), // AI20
-                30 => rng.gen_range(0..=11000), // AI30
-                50 => rng.gen_range(0..=5000), // AI50
-                231 => rng.gen_range(0..=2047), // AI231
-                232 => rng.gen_range(0..=2047), // AI232
-                233 => rng.gen_range(0..=2047), // AI233
-                _ => 0,
-            }
-        },
-        "DI" => {
-            match reg_addr {
-                0 => rng.gen_range(0..=1), // DI0
-                1 => rng.gen_range(0..=1), // DI1
-                8 => rng.gen_range(0..=1), // DI8
-                80 => rng.gen_range(0..=1), // DI80
-                _ => 0,
-            }
-        },
+ 
+    match reg_addr {
+        10 => rng.gen_range(0..=15000), // AI10
+        11 => rng.gen_range(-15000..=0), // AI11
+        12 => rng.gen_range(0..=1_000_000), // AI12
+        13 => rng.gen_range(0..=1_000_000), // AI13
+        17 => rng.gen_range(0..=12000) , // AI17
+        18 => rng.gen_range(-15000..=15000), // AI18
+        19 => rng.gen_range(0..=1000), // AI19
+        20 => rng.gen_range(0..=1000), // AI20
+        30 => rng.gen_range(0..=11000), // AI30
+        50 => rng.gen_range(0..=5000), // AI50
+        231 => rng.gen_range(0..=2047), // AI231
+        232 => rng.gen_range(0..=2047), // AI232
+        233 => rng.gen_range(0..=2047), // AI233
+        00 => rng.gen_range(0..=1), // DI0
+        01 => rng.gen_range(0..=1), // DI1
+        08 => rng.gen_range(0..=1), // DI8
+        080 => rng.gen_range(0..=1), // DI80
         _ => 0,
     }
 }

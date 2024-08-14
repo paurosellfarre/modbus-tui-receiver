@@ -10,13 +10,6 @@ use tui::{
 };
 use tokio::time::Duration;
 
-const OFFSET: i32 = 32_768; // Moving the range of i16 to u16
-
-// Transform u16 to i16 (Modbus registers are signed)
-fn u16_to_i16(value: u16) -> i16 {
-    (value as i32 - OFFSET) as i16
-}
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
@@ -31,13 +24,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Registers we will read
     let registers_ai: HashMap<&str, u16> = [
         ("AI10", 10), ("AI11", 11),
-        ("AI12", 12), ("AI13", 13),
+        ("AI12", 12), ("AI13", 13), // 32 bits registers = 2 16 bits registers
         ("AI17", 17), ("AI18", 18), ("AI19", 19), ("AI20", 20),
         ("AI30", 30), ("AI50", 50), ("AI231", 231), ("AI232", 232), ("AI233", 233),
     ].iter().cloned().collect();
 
     let registers_di: HashMap<&str, u16> = [
-        ("DI0", 0), ("DI1", 1), ("DI8", 8), ("DI80", 80),
+        ("DI0", 00), ("DI1", 01), ("DI8", 08), ("DI80", 080),
     ].iter().cloned().collect();
 
     loop {
@@ -45,14 +38,47 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         
         // Read AI registers
         for (name, address) in &registers_ai {
-            match modbus_client.read_input_registers(*address, 1).await {
+            let cnt;
+
+            match *address {
+                12 | 13 => cnt = 2,
+                11 | 18 => cnt = 3,
+                _ => cnt = 1,
+            }
+
+            match modbus_client.read_input_registers(*address, cnt).await {
                 Ok(result) => {
                     let value = match result {
-                        Ok(data) => data.get(0).copied().unwrap_or(0),
+                        Ok(data) => {
+                            match *address {
+
+                                12 | 13 => {
+                                    let high = data.get(0).copied().unwrap_or(0) as u16;
+                                    let low = data.get(1).copied().unwrap_or(0) as u16;
+                                    
+                                    // Combina los dos valores de 16 bits en un valor de 32 bits
+                                    ((high as i32) << 16) | (low as i32)
+                                },
+                                11 | 18 => {
+                                    let negative_indicator = data.get(0).copied().unwrap_or(0) as u16;
+                                    let value = data.get(1).copied().unwrap_or(0) as u16;
+
+                                    // If the negative indicator is set, the value is negative
+                                    if negative_indicator == 1 {
+                                        //print!("Negative value: {}", value);
+                                        (value as i32) - 65536
+                                    } else {
+                                        value as i32
+                                    }
+                                }
+                                _ => {
+                                    data.get(0).copied().unwrap_or(0) as i32
+                                }
+                            }
+                        },
                         Err(_) => 0,
                     };
-                    let converted_value = u16_to_i16(value);
-                    rows.push(Row::new(vec![name.to_string(), converted_value.to_string()]));
+                    rows.push(Row::new(vec![name.to_string(), value.to_string()]));
                 }
                 Err(_) => {
                     
@@ -63,14 +89,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Read DI registers
         for (name, address) in &registers_di {
-            match modbus_client.read_input_registers(*address, 2).await {
+            match modbus_client.read_input_registers(*address, 1).await {
                 Ok(result) => {
                     let value = match result {
                         Ok(data) => data.get(0).copied().unwrap_or(0),
                         Err(_) => 0,
                     };
-                    let converted_value = u16_to_i16(value);
-                    rows.push(Row::new(vec![name.to_string(), converted_value.to_string()]));
+                    rows.push(Row::new(vec![name.to_string(), value.to_string()]));
                 }
                 Err(_) => {
                     rows.push(Row::new(vec![name.to_string(), "Error".to_string()]));
