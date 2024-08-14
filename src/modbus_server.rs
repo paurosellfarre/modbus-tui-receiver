@@ -43,11 +43,12 @@ impl tokio_modbus::server::Service for ServerService {
                         response_values.push(low);
                     },
                     // registers that can be negative
+                    // to handle this with u16, we need to add a negative indicator register
                     3 => {
                         let negative_indicator = value < 0;
                         response_values.push(if negative_indicator { 1 } else { 0 }); // Negative indicator
                         response_values.push((value as u16) & 0xFFFF); // Value
-                        response_values.push(value as u16);
+                        response_values.push(0);
                     },
                     _ => {
                         response_values.push(value as u16);
