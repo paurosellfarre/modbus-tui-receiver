@@ -10,6 +10,13 @@ use tui::{
 };
 use tokio::time::Duration;
 
+const OFFSET: i32 = 32_768; // Moving the range of i16 to u16
+
+// Transform u16 to i16 (Modbus registers are signed)
+fn u16_to_i16(value: u16) -> i16 {
+    (value as i32 - OFFSET) as i16
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
@@ -44,7 +51,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         Ok(data) => data.get(0).copied().unwrap_or(0),
                         Err(_) => 0,
                     };
-                    rows.push(Row::new(vec![name.to_string(), value.to_string()]));
+                    let converted_value = u16_to_i16(value);
+                    rows.push(Row::new(vec![name.to_string(), converted_value.to_string()]));
                 }
                 Err(_) => {
                     
@@ -61,7 +69,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         Ok(data) => data.get(0).copied().unwrap_or(0),
                         Err(_) => 0,
                     };
-                    rows.push(Row::new(vec![name.to_string(), value.to_string()]));
+                    let converted_value = u16_to_i16(value);
+                    rows.push(Row::new(vec![name.to_string(), converted_value.to_string()]));
                 }
                 Err(_) => {
                     rows.push(Row::new(vec![name.to_string(), "Error".to_string()]));
