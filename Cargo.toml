@@ -1,0 +1,20 @@
+[package]
+name = "modbus-tui-receiver"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+tokio-modbus = { version = "0.14", features = ["tcp-server"] }
+tui = "0.19"
+crossterm = "0.26"
+anyhow = "1.0"
+rand = "0.8"
+
+[[bin]]
+name = "modbus-server"
+path = "src/modbus_server.rs"
+
+[[bin]]
+name = "modbus-client"
+path = "src/modbus_reader.rs"
