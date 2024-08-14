@@ -1,5 +1,8 @@
-Server with fake data
+#Server with fake data
+
 cargo run --bin modbus-server
 
-Client
+
+#Client
+
 cargo run --bin modbus-client
