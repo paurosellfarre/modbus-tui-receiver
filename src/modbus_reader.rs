@@ -10,6 +10,14 @@ use tui::{
 };
 use tokio::time::Duration;
 
+#[derive(Default)]
+struct Register {
+    name: &'static str,
+    address: u16,
+    bigger_than_16_bits: bool,
+    can_be_negative: bool,
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
@@ -22,32 +30,49 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut modbus_client = tcp::connect(addr).await?;
 
     // Registers we will read
-    let registers: HashMap<&str, u16> = [
-        ("AI10", 10), ("AI11", 11),
-        ("AI12", 12), ("AI13", 13), // 32 bits registers = 2 16 bits registers
-        ("AI17", 17), ("AI18", 18), ("AI19", 19), ("AI20", 20),
-        ("AI30", 30), ("AI50", 50), ("AI231", 231), ("AI232", 232), ("AI233", 233),
-        ("DI0", 00), ("DI1", 01), ("DI8", 08), ("DI80", 080),
-    ].iter().cloned().collect();
+    let registers = vec![
+        Register { name: "AI10", address: 10, ..Default::default() },
+        Register { name: "AI11", address: 11, bigger_than_16_bits: false, can_be_negative: true },
+        Register { name: "AI12", address: 12, bigger_than_16_bits: true, can_be_negative: false },
+        Register { name: "AI13", address: 13, bigger_than_16_bits: true, can_be_negative: false },
+        Register { name: "AI17", address: 17, ..Default::default() },
+        Register { name: "AI18", address: 18, bigger_than_16_bits: false, can_be_negative: true },
+        Register { name: "AI19", address: 19, ..Default::default() },
+        Register { name: "AI20", address: 20, ..Default::default() },
+        Register { name: "AI30", address: 30, ..Default::default() },
+        Register { name: "AI50", address: 50, ..Default::default() },
+        Register { name: "AI231", address: 231, ..Default::default() },
+        Register { name: "AI232", address: 232, ..Default::default() },
+        Register { name: "AI233", address: 233, ..Default::default() },
+        Register { name: "DI0", address: 00, ..Default::default() },
+        Register { name: "DI1", address: 01, ..Default::default() },
+        Register { name: "DI8", address: 08, ..Default::default() },
+        Register { name: "DI80", address: 080, ..Default::default() },
+    ];
 
     loop {
         let mut rows = vec![];
         
         // Read AI registers
-        for (name, address) in &registers {
-            let cnt;
+        for reg in &registers {
+            let name = reg.name;
+            let address = reg.address;
+            let bigger_than_16_bits = reg.bigger_than_16_bits;
+            let can_be_negative = reg.can_be_negative;
 
-            match *address {
-                12 | 13 => cnt = 2,
-                11 | 18 => cnt = 3,
-                _ => cnt = 1,
-            }
+            // If the register is bigger than 16 bits, we need to read 2 registers
+            // If the register can be negative, we need to read 3 registers
+            let cnt = match (bigger_than_16_bits, can_be_negative) {
+                (true, false) => 2,
+                (false, true) => 3,
+                _ => 1,   
+            };
 
-            match modbus_client.read_input_registers(*address, cnt).await {
+            match modbus_client.read_input_registers(address, cnt).await {
                 Ok(result) => {
                     let value = match result {
                         Ok(data) => {
-                            match *address {
+                            match address {
 
                                 12 | 13 => {
                                     let high = data.get(0).copied().unwrap_or(0) as u16;

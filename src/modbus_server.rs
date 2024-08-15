@@ -33,6 +33,8 @@ impl tokio_modbus::server::Service for ServerService {
 
                 let value = generate_random_value(addr);
 
+                println!("SERVER: ReadInputRegisters - Address: {addr}, Value: {value}, Count: {cnt}");
+
                 match cnt {
                     // 32 bits registers = 2 16 bits registers
                     2 => {
