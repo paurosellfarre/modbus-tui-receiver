@@ -72,16 +72,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Ok(result) => {
                     let value = match result {
                         Ok(data) => {
-                            match address {
+                            match (bigger_than_16_bits, can_be_negative) {
 
-                                12 | 13 => {
+                                (true, false) => {
                                     let high = data.get(0).copied().unwrap_or(0) as u16;
                                     let low = data.get(1).copied().unwrap_or(0) as u16;
                                     
                                     // Combine the two 16 bits registers into a single 32 bits register
                                     ((high as i32) << 16) | (low as i32)
                                 },
-                                11 | 18 => {
+                                (false, true) => {
                                     let negative_indicator = data.get(0).copied().unwrap_or(0) as u16;
                                     let value = data.get(1).copied().unwrap_or(0) as u16;
 
@@ -133,6 +133,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         })?;
 
         // Update every 1Hz
-        tokio::time::sleep(Duration::from_secs(1)).await;
+        tokio::time::sleep(Duration::from_secs(10)).await;
     }
 }
