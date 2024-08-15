@@ -133,6 +133,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         })?;
 
         // Update every 1Hz
-        tokio::time::sleep(Duration::from_secs(10)).await;
+        tokio::time::sleep(Duration::from_secs(1)).await;
     }
 }
