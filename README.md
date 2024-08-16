@@ -17,10 +17,11 @@ cargo run --bin modbus-client
 
 ## Server
 
-![image](https://github.com/user-attachments/assets/ac3f4728-2a70-41fd-9d45-b073de0e7ee0)
+![image](https://github.com/user-attachments/assets/2ce1bf99-257a-4ecd-8159-399ba6ca4a6c)
 
 
 ## Client
 
-![image](https://github.com/user-attachments/assets/3b610cef-84f7-407e-9a51-0d364188d837)
+![image](https://github.com/user-attachments/assets/7a1f96a1-8618-4cf5-a248-349958c38533)
+
 
